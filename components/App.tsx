@@ -8,13 +8,12 @@ import { AdminModal } from './components/AdminModal';
 import { ProfileModal } from './components/ProfileModal';
 import { SettingsModal } from './components/SettingsModal';
 import { SafetyModal } from './components/SafetyModal';
-import { AboutModal } from './components/AboutModal';
 import { ChatWidget } from './components/ChatWidget';
 import { GeoLocation, LocationReport, User, ThemeMode, Language } from './types';
 import { fetchRealWeather } from './services/weatherService';
 import { getActiveSession, logout, subscribeToAuthChanges } from './services/authService';
 import { TRANSLATIONS } from './constants';
-import { CloudLightning, LogIn, LogOut, ChevronDown, Database, User as UserIcon, Settings as SettingsIcon, Activity, ShieldAlert, Info } from 'lucide-react';
+import { CloudLightning, LogIn, LogOut, ChevronDown, Database, User as UserIcon, Settings as SettingsIcon, Activity, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 
@@ -32,7 +31,6 @@ const App: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
-  const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const t = TRANSLATIONS[language] || TRANSLATIONS.en;
@@ -62,11 +60,7 @@ const App: React.FC = () => {
     };
     initAuth();
 
-    return () => { 
-      if (typeof unsubscribe === 'function') {
-        unsubscribe(); 
-      }
-    };
+    return () => { unsubscribe(); };
   }, []);
 
   const handleLocationSelect = useCallback(async (loc: GeoLocation) => {
@@ -128,11 +122,6 @@ const App: React.FC = () => {
         onClose={() => setIsSafetyOpen(false)} 
         theme={theme} 
         language={language} 
-      />
-      <AboutModal 
-        isOpen={isAboutOpen} 
-        onClose={() => setIsAboutOpen(false)} 
-        theme={theme} 
       />
 
       <header className={clsx(
@@ -232,9 +221,6 @@ const App: React.FC = () => {
                      <button onClick={() => { setIsAdminOpen(true); setIsUserMenuOpen(false); }} className={clsx("w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-2 border-b", theme === 'white' ? "hover:bg-slate-50 border-slate-100" : "hover:bg-slate-800 border-slate-800")}>
                         <Database className="w-4 h-4 text-purple-400" /> {t.database}
                      </button>
-                     <button onClick={() => { setIsAboutOpen(true); setIsUserMenuOpen(false); }} className={clsx("w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-2 border-b", theme === 'white' ? "hover:bg-slate-50 border-slate-100" : "hover:bg-slate-800 border-slate-800")}>
-                        <Info className="w-4 h-4 text-blue-400" /> {t.about}
-                     </button>
                      <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-500/5 transition-colors flex items-center gap-2">
                         <LogOut className="w-4 h-4" /> {t.signOut}
                      </button>
@@ -307,3 +293,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+    

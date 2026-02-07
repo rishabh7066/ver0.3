@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, Loader2, Map as MapIcon, X, History, Trash2 } from 'lucide-react';
 import { GeoLocation, ThemeMode, Language } from '../types';
 import { TRANSLATIONS } from '../constants';
+import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 
 interface SearchBarProps {
@@ -145,9 +146,16 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onLocationSelect, theme, l
          </div>
        </div>
 
+       <AnimatePresence>
        {showDropdown && (results.length > 0 || (query === '' && recentSearches.length > 0)) && (
-         <div className={clsx("absolute top-full mt-2 w-full backdrop-blur-xl border rounded-xl shadow-2xl overflow-hidden z-[100] animate-in slide-in-from-top-2", dropdownBg)}>
-            <ul className="max-h-60 overflow-y-auto py-1">
+         <motion.div 
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className={clsx("absolute top-full mt-2 w-full backdrop-blur-xl border rounded-xl shadow-2xl overflow-hidden z-[100]", dropdownBg)}
+         >
+            <ul className="max-h-60 overflow-y-auto py-1 custom-scrollbar">
               {query === '' && recentSearches.length > 0 && (
                 <>
                   <li className={clsx("px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 flex justify-between items-center border-b", theme === 'white' ? "bg-slate-50 border-slate-100" : "bg-white/5 border-white/5")}>
@@ -157,7 +165,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onLocationSelect, theme, l
                   {recentSearches.map((res) => {
                     const isState = res.feature_code === 'ADM1';
                     return (
-                      <li key={`recent-${res.id}`}>
+                      <motion.li 
+                        key={`recent-${res.id}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
                         <button onClick={() => handleSelect(res)} className={clsx("w-full text-left px-4 py-3 hover:bg-cyan-500/10 flex items-center gap-3 group border-b last:border-0 transition-colors", theme === 'white' ? "border-slate-100" : "border-slate-800/50")}>
                           <div className={clsx("p-2 rounded-lg transition-colors", theme === 'white' ? "bg-slate-200 text-slate-500" : "bg-slate-800 text-slate-500 group-hover:text-cyan-400")}>
                              <History className="w-4 h-4" />
@@ -172,7 +184,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onLocationSelect, theme, l
                             </div>
                           </div>
                         </button>
-                      </li>
+                      </motion.li>
                     );
                   })}
                   <li className={clsx("px-4 py-1.5 text-[10px] font-medium text-slate-500 text-center border-t", theme === 'white' ? "bg-slate-50 border-slate-100" : "bg-white/5 border-white/5")}>
@@ -183,7 +195,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onLocationSelect, theme, l
               {results.map((res) => {
                 const isState = res.feature_code === 'ADM1';
                 return (
-                  <li key={res.id}>
+                  <motion.li 
+                    key={res.id}
+                    layout
+                  >
                     <button onClick={() => handleSelect(res)} className={clsx("w-full text-left px-4 py-3 hover:bg-cyan-500/10 flex items-center gap-3 group border-b last:border-0 transition-colors", theme === 'white' ? "border-slate-100" : "border-slate-800/50")}>
                       <div className={clsx("p-2 rounded-lg transition-colors", isState ? "bg-purple-500/20 text-purple-400" : "bg-slate-800 text-slate-400 group-hover:text-cyan-400")}>
                          {isState ? <MapIcon className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
@@ -198,12 +213,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onLocationSelect, theme, l
                         </div>
                       </div>
                     </button>
-                  </li>
+                  </motion.li>
                 );
               })}
             </ul>
-         </div>
+         </motion.div>
        )}
+       </AnimatePresence>
     </div>
   );
 };
+    

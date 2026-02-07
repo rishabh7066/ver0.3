@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { LocationReport, ThemeMode, Language } from '../types';
 import { createChatSession } from '../services/chatService';
-import { GoogleGenAI, GenerateContentResponse, Modality, Chat } from '@google/genai';
+import { GoogleGenAI, GenerateContentResponse, Modality } from '@google/genai';
+import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 
 interface Message {
@@ -39,7 +40,7 @@ async function decodeAudioData(
   sampleRate: number,
   numChannels: number,
 ): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer, data.byteOffset, data.byteLength / 2);
+  const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
@@ -91,18 +92,13 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const chatSessionRef = useRef<Chat | null>(null);
-
-  // Initialize or reset chat session when report changes to refresh operational context
-  useEffect(() => {
-    chatSessionRef.current = createChatSession(report);
-  }, [report]);
+  const aiRef = useRef(new GoogleGenAI({ apiKey: process.env.API_KEY }));
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isRecording, loading]);
+  }, [messages, isRecording, loading, isOpen, isExpanded]);
 
   const stopCurrentSpeech = useCallback(() => {
     if (currentSourceRef.current) {
@@ -121,7 +117,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
 
     try {
       setIsSpeaking(true);
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = aiRef.current;
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: `Say in a professional, calm dispatcher tone: ${cleanText}` }] }],
@@ -206,7 +202,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
     
     try {
       const base64Audio = await blobToBase64(blob);
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = aiRef.current;
       
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -238,29 +234,23 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
     setLoading(true);
 
     try {
-      if (!chatSessionRef.current) {
-        chatSessionRef.current = createChatSession(report);
-      }
-      
-      const response = await chatSessionRef.current.sendMessageStream({ message: userMsg });
+      const chat = createChatSession(report);
+      if (!chat) throw new Error("Link failed");
+      const response = await chat.sendMessageStream({ message: userMsg });
       let fullText = "";
       setMessages(prev => [...prev, { role: 'model', text: "" }]);
-      
       for await (const chunk of response) {
         const c = chunk as GenerateContentResponse;
-        fullText += (c.text || "");
+        fullText += c.text;
         setMessages(prev => {
           const newMsgs = [...prev];
           newMsgs[newMsgs.length - 1] = { role: 'model', text: fullText };
           return newMsgs;
         });
       }
-      
       if (voiceOutputEnabled) speakText(fullText);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'model', text: "Connection lost. Re-establishing satellite link..." }]);
-      // If session failed, reset it for next message
-      chatSessionRef.current = null;
     } finally {
       setLoading(false);
     }
@@ -280,27 +270,42 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
   const textColor = theme === 'white' ? "text-slate-900" : "text-white";
 
   return (
-    <div className={clsx(
-      "fixed bottom-6 right-6 z-[3000] flex flex-col transition-all duration-300",
-      isOpen ? (isExpanded ? "w-[90vw] h-[80vh] md:w-[600px] md:h-[700px]" : "w-[350px] h-[500px]") : "w-14 h-14"
-    )}>
+    <motion.div 
+      layout
+      className={clsx(
+        "fixed bottom-6 right-6 z-[3000] flex flex-col",
+      )}
+      initial={false}
+      animate={{
+        width: isOpen ? (isExpanded ? (window.innerWidth < 768 ? '90vw' : 600) : 350) : 56,
+        height: isOpen ? (isExpanded ? (window.innerHeight < 800 ? '80vh' : 700) : 500) : 56,
+      }}
+      transition={{ type: "spring", stiffness: 200, damping: 25 }}
+    >
+      <AnimatePresence mode='wait'>
       {isOpen ? (
-        <div className={clsx("flex flex-col h-full rounded-2xl border shadow-2xl backdrop-blur-3xl overflow-hidden animate-in zoom-in-95", panelBg)}>
+        <motion.div 
+          key="chat-window"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          className={clsx("flex flex-col h-full rounded-2xl border shadow-2xl backdrop-blur-3xl overflow-hidden", panelBg)}
+        >
           {/* Header */}
-          <div className="p-4 border-b border-white/10 bg-gradient-to-r from-cyan-600/30 to-blue-900/40 flex justify-between items-center shadow-lg">
+          <div className="p-4 border-b border-white/10 bg-gradient-to-r from-cyan-600/30 to-blue-900/40 flex justify-between items-center shadow-lg cursor-pointer" onClick={() => !isExpanded && setIsExpanded(true)}>
             <div className="flex items-center gap-3">
-              <div className={clsx("p-2 rounded-xl text-white shadow-lg transition-all", isSpeaking ? "bg-emerald-50 animate-pulse" : "bg-cyan-600")}>
+              <div className={clsx("p-2 rounded-xl text-white shadow-lg transition-all", isSpeaking ? "bg-emerald-500 animate-pulse" : "bg-cyan-600")}>
                 <Bot className="w-4 h-4" />
               </div>
               <div>
                 <h3 className={clsx("text-sm font-black uppercase tracking-tight", textColor)}>Sky-X Intel</h3>
                 <div className="flex items-center gap-1.5">
-                  <span className={clsx("w-1.5 h-1.5 rounded-full animate-pulse", isSpeaking ? "bg-emerald-50" : "bg-cyan-500")}></span>
+                  <span className={clsx("w-1.5 h-1.5 rounded-full animate-pulse", isSpeaking ? "bg-emerald-500" : "bg-cyan-500")}></span>
                   <span className="text-[9px] text-slate-400 font-mono uppercase tracking-[0.2em]">Operational</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                <button onClick={() => setVoiceOutputEnabled(!voiceOutputEnabled)} className={clsx("p-2 rounded-lg transition-all", voiceOutputEnabled ? "text-cyan-400" : "text-slate-500")}>
                   {voiceOutputEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                </button>
@@ -316,7 +321,12 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-black/20 custom-scrollbar">
             {messages.map((msg, idx) => (
-              <div key={idx} className={clsx("flex flex-col group", msg.role === 'user' ? "items-end" : "items-start")}>
+              <motion.div 
+                key={idx} 
+                initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={clsx("flex flex-col group", msg.role === 'user' ? "items-end" : "items-start")}
+              >
                 <div className={clsx(
                   "max-w-[85%] p-3.5 rounded-2xl text-[13px] leading-relaxed shadow-lg transition-all",
                   msg.role === 'user' 
@@ -338,7 +348,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
                     </button>
                   )}
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
 
@@ -416,16 +426,21 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
                 </div>
              </div>
           </div>
-        </div>
+        </motion.div>
       ) : (
-        <button 
+        <motion.button 
+          key="chat-bubble"
+          layoutId="chat-trigger"
           onClick={() => setIsOpen(true)}
-          className="group relative w-14 h-14 bg-gradient-to-br from-cyan-600 to-blue-800 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] transition-all hover:scale-110 active:scale-90 border border-cyan-500/30"
+          className="group relative w-14 h-14 bg-gradient-to-br from-cyan-600 to-blue-800 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] transition-all border border-cyan-500/30"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
         >
           <Bot className="w-7 h-7 text-white relative z-10" />
           <span className="absolute h-full w-full rounded-full bg-cyan-400 opacity-20 animate-ping"></span>
-        </button>
+        </motion.button>
       )}
+      </AnimatePresence>
 
       <style>{`
         @keyframes waveform {
@@ -446,6 +461,6 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
           border-radius: 2px;
         }
       `}</style>
-    </div>
+    </motion.div>
   );
 };

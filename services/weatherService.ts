@@ -128,12 +128,20 @@ export const fetchRealWeather = async (lat: number, lng: number, locationName?: 
     // --- TIMELINE PROCESSING ---
     // Correctly slice data relative to NOW to show trend (past 5h -> future 6h)
     // This fixes the "constant graph" issue by ensuring we don't pick static indices.
-    const hourlyTimes = data.hourly.time;
+    const hourlyTimes: string[] = data.hourly.time || [];
     const now = new Date();
+    const nowTime = now.getTime();
     
     // Find the index closest to current hour
-    let nowIndex = hourlyTimes.findIndex((t: string) => new Date(t) > now);
-    if (nowIndex === -1) nowIndex = 12; // Fallback
+    let nowIndex = -1;
+    for (let i = 0; i < hourlyTimes.length; i++) {
+      const timeObj = new Date(hourlyTimes[i]);
+      if (timeObj.getTime() > nowTime) {
+        nowIndex = i;
+        break;
+      }
+    }
+    if (nowIndex === -1) nowIndex = Math.min(12, Math.floor(hourlyTimes.length / 2)); // Better fallback
 
     const startIndex = Math.max(0, nowIndex - 5);
     const endIndex = Math.min(hourlyTimes.length, nowIndex + 7); // Total 12 points
@@ -141,18 +149,21 @@ export const fetchRealWeather = async (lat: number, lng: number, locationName?: 
     const timelineData = hourlyTimes.slice(startIndex, endIndex).map((t: string, i: number) => {
         const idx = startIndex + i;
         const timeObj = new Date(t);
+        const rainValue = data.hourly?.rain?.[idx] ?? 0;
+        const tempValue = data.hourly?.temperature_2m?.[idx] ?? weather.temp;
+        const probabilityValue = data.hourly?.precipitation_probability?.[idx] ?? 0;
         return {
-            time: `${timeObj.getHours()}:00`,
-            rain: data.hourly.rain[idx] || 0,
-            temp: data.hourly.temperature_2m[idx] || weather.temp,
-            probability: data.hourly.precipitation_probability[idx] || 0,
+            time: `${String(timeObj.getHours()).padStart(2, '0')}:00`,
+            rain: typeof rainValue === 'number' ? rainValue : 0,
+            temp: typeof tempValue === 'number' ? tempValue : weather.temp,
+            probability: typeof probabilityValue === 'number' ? probabilityValue : 0,
         };
     });
     
     // Calculate recent rain sum for flood model (past 12h)
     const floodStartIndex = Math.max(0, nowIndex - 12);
-    const recentHistory = data.hourly.rain.slice(floodStartIndex, nowIndex);
-    const recentRainSum = recentHistory.reduce((a: number, b: number) => a + b, 0);
+    const recentHistory = (data.hourly?.rain || []).slice(floodStartIndex, nowIndex);
+    const recentRainSum = recentHistory.reduce((a: number, b: number) => (typeof a === 'number' ? a : 0) + (typeof b === 'number' ? b : 0), 0);
 
     const prediction = calculateAdvancedRisk(weather, recentRainSum);
 

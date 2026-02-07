@@ -2,9 +2,29 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { LocationReport, GeminiInsight, HazardAnalysisResult, ClimateRiskSummary } from "../types";
 
+const getApiKey = () => {
+  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    return process.env.API_KEY;
+  }
+  return '';
+};
+
+let aiInstance: GoogleGenAI | null = null;
+
+const getAI = () => {
+  if (!aiInstance) {
+    const key = getApiKey();
+    if (key) {
+      aiInstance = new GoogleGenAI({ apiKey: key });
+    }
+  }
+  return aiInstance;
+};
+
 export const generateClimateRiskSummary = async (report: LocationReport): Promise<ClimateRiskSummary> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAI();
+    if (!ai) throw new Error("Gemini API Key is missing");
 
     const prompt = `
       You are an AI disaster-risk assessment engine integrated into a climate analytics website.
@@ -113,7 +133,8 @@ export const generateClimateRiskSummary = async (report: LocationReport): Promis
 
 export const generateDisasterInsight = async (report: LocationReport): Promise<GeminiInsight> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAI();
+    if (!ai) throw new Error("Gemini API Key is missing");
 
     const prompt = `
       Analyze current weather telemetry for Lat ${report.location.lat}, Lng ${report.location.lng}.
@@ -123,7 +144,7 @@ export const generateDisasterInsight = async (report: LocationReport): Promise<G
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash-preview',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -148,12 +169,13 @@ export const generateDisasterInsight = async (report: LocationReport): Promise<G
 
 export const detectSafetyHazards = async (base64Image: string): Promise<HazardAnalysisResult> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAI();
+    if (!ai) throw new Error("Gemini API Key is missing");
     const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Image.split(',')[1] } };
     const textPart = { text: "Identify visible infrastructure risks in this image (pits, drains, broken roads)." };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash-preview',
       contents: { parts: [imagePart, textPart] },
       config: {
         responseMimeType: "application/json",

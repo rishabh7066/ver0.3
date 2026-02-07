@@ -2,6 +2,27 @@
 import { GoogleGenAI, Chat } from "@google/genai";
 import { LocationReport } from "../types";
 
+// Safe environment access
+const getApiKey = () => {
+  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    return process.env.API_KEY;
+  }
+  return '';
+};
+
+// Lazy initialization
+let aiInstance: GoogleGenAI | null = null;
+
+const getAI = () => {
+  if (!aiInstance) {
+    const key = getApiKey();
+    if (key) {
+      aiInstance = new GoogleGenAI({ apiKey: key });
+    }
+  }
+  return aiInstance;
+};
+
 const SYSTEM_INSTRUCTION = `
 You are the "Predictive Sky-X" AI Climate Intelligence Assistant. 
 Your primary role is to provide expert analysis on current climate risks, real-time weather patterns, and immediate public safety for locations across India.
@@ -25,8 +46,9 @@ GUIDELINES:
 When analyzing a location, consider the local geography (e.g., North East terrain, coastal vulnerabilities, or urban heat islands) in relation to the current weather.
 `;
 
-export const createChatSession = (currentReport: LocationReport | null): Chat => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const createChatSession = (currentReport: LocationReport | null): Chat | null => {
+  const ai = getAI();
+  if (!ai) return null;
 
   let contextPrompt = "";
   if (currentReport) {
@@ -41,7 +63,7 @@ export const createChatSession = (currentReport: LocationReport | null): Chat =>
   }
 
   return ai.chats.create({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-2.0-flash-preview',
     config: {
       systemInstruction: SYSTEM_INSTRUCTION + (contextPrompt ? `\n\n${contextPrompt}` : ""),
       temperature: 0.7,
