@@ -1,0 +1,9 @@
+{
+  "name": "Predictive Sky-X",
+  "description": "AI-powered disaster prediction and live weather monitoring platform for India, powered by Google Gemini and satellite analytics.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera",
+    "microphone"
+  ]
+}
