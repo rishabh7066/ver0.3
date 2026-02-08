@@ -5,10 +5,8 @@ import { LocationReport } from "../types";
 // Safe environment access
 const getApiKey = () => {
   if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-    console.log("[v0] chatService: API key found, length:", process.env.API_KEY.length);
     return process.env.API_KEY;
   }
-  console.warn("[v0] chatService: API key NOT found in process.env.API_KEY");
   return '';
 };
 

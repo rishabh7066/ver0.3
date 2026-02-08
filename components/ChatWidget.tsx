@@ -93,7 +93,6 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
   const audioContextRef = useRef<AudioContext | null>(null);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const apiKey = process.env.API_KEY || '';
-  console.log("[v0] ChatWidget: API_KEY present:", !!apiKey, "length:", apiKey.length);
   const aiRef = useRef(new GoogleGenAI({ apiKey }));
 
   useEffect(() => {
@@ -383,12 +382,15 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
                   {inputMode === 'TEXT' ? (
                     <div className="relative group flex items-center bg-black/40 border border-white/10 rounded-full pr-1 overflow-hidden transition-all focus-within:border-cyan-500/40">
                       <input 
+                        id="chat-input"
+                        name="chat-input"
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Type tactical query..."
                         className="w-full bg-transparent py-3 pl-5 pr-12 text-sm text-white focus:outline-none placeholder:text-slate-600 font-mono"
+                        autoComplete="off"
                       />
                       <button 
                         onClick={handleSendText}
