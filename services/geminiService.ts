@@ -4,8 +4,10 @@ import { LocationReport, GeminiInsight, HazardAnalysisResult, ClimateRiskSummary
 
 const getApiKey = () => {
   if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    console.log("[v0] geminiService: API key found, length:", process.env.API_KEY.length);
     return process.env.API_KEY;
   }
+  console.warn("[v0] geminiService: API key NOT found in process.env.API_KEY");
   return '';
 };
 

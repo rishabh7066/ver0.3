@@ -92,7 +92,9 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const aiRef = useRef(new GoogleGenAI({ apiKey: process.env.API_KEY }));
+  const apiKey = process.env.API_KEY || '';
+  console.log("[v0] ChatWidget: API_KEY present:", !!apiKey, "length:", apiKey.length);
+  const aiRef = useRef(new GoogleGenAI({ apiKey }));
 
   useEffect(() => {
     if (scrollRef.current) {
