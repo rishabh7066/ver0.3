@@ -219,8 +219,12 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
       const responseText = response.text || "Transmission received. Analysis pending.";
       setMessages(prev => [...prev, { role: 'model', text: responseText }]);
       if (voiceOutputEnabled) speakText(responseText);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'model', text: "Signal corrupted. Please resend voice report." }]);
+    } catch (error: any) {
+      console.error("Voice chat error:", error);
+      const errorMessage = error?.message?.includes("API key")
+        ? "API key is missing or invalid. Please configure your GEMINI_API_KEY."
+        : `Voice processing error: ${error?.message || "Unknown error"}. Please retry.`;
+      setMessages(prev => [...prev, { role: 'model', text: errorMessage }]);
     } finally {
       setLoading(false);
     }
@@ -235,7 +239,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
 
     try {
       const chat = createChatSession(report);
-      if (!chat) throw new Error("Link failed");
+      if (!chat) throw new Error("API key not configured. Please set GEMINI_API_KEY.");
       const response = await chat.sendMessageStream({ message: userMsg });
       let fullText = "";
       setMessages(prev => [...prev, { role: 'model', text: "" }]);
@@ -249,8 +253,12 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ report, theme, language 
         });
       }
       if (voiceOutputEnabled) speakText(fullText);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'model', text: "Connection lost. Re-establishing satellite link..." }]);
+    } catch (error: any) {
+      console.error("Chat error:", error);
+      const errorMessage = error?.message?.includes("API key")
+        ? "API key is missing or invalid. Please configure your GEMINI_API_KEY."
+        : `Transmission error: ${error?.message || "Unknown error"}. Retrying may help.`;
+      setMessages(prev => [...prev, { role: 'model', text: errorMessage }]);
     } finally {
       setLoading(false);
     }
